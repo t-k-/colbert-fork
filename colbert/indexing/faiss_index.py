@@ -28,7 +28,7 @@ class FaissIndex():
     def train(self, train_data):
         print_message(f"#> Training now (using {self.gpu.ngpu} GPUs)...")
 
-        if self.gpu.ngpu > 0:
+        if self.gpu.ngpu > 0: # for cluster training...
             self.gpu.training_initialize(self.index, self.quantizer)
 
         s = time.time()

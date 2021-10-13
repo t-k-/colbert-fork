@@ -92,9 +92,25 @@ def train(args):
         this_batch_loss = 0.0
 
         for queries, passages in BatchSteps:
+            #print(queries[0].shape) # B*2, 32
+            #print(queries[1].shape) # B*2, 32
+            #print(passages[0].shape) # B*2, 134
+            #print(passages[1].shape) # B*2, 134
             with amp.context():
-                scores = colbert(queries, passages).view(2, -1).permute(1, 0)
-                loss = criterion(scores, labels[:scores.size(0)])
+                #          +   +   +  -   -   -
+                # tensor([ 1,  2,  3, -1, -2, -3])
+                #
+                # tensor([[ 1,  2,  3],
+                #         [-1, -2, -3]])
+                #
+                # tensor([[ 1, -1],
+                #         [ 2, -2],
+                #         [ 3, -3]])
+                output = colbert(queries, passages) # [16]
+                scores = output.view(2, -1).permute(1, 0)
+
+                B = scores.size(0) # 8
+                loss = criterion(scores, labels[:B])
                 loss = loss / args.accumsteps
 
             if args.rank < 1:

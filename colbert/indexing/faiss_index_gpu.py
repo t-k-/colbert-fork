@@ -64,8 +64,8 @@ class FaissIndexGPU():
         assert self.ngpu > 0
 
         s = time.time()
-        self.index_ivf = faiss.extract_index_ivf(index)
-        self.clustering_index = faiss.index_cpu_to_all_gpus(quantizer)
+        self.index_ivf = faiss.extract_index_ivf(index) # get inverted file?
+        self.clustering_index = faiss.index_cpu_to_all_gpus(quantizer) # copy index to gpu?
         self.index_ivf.clustering_index = self.clustering_index
         print(time.time() - s)
 

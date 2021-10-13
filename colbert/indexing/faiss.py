@@ -39,8 +39,8 @@ def load_sample(samples_paths, sample_fraction=None):
 
 def prepare_faiss_index(slice_samples_paths, partitions, sample_fraction=None):
     training_sample = load_sample(slice_samples_paths, sample_fraction=sample_fraction)
-
-    dim = training_sample.shape[-1]
+    
+    dim = training_sample.shape[-1] # latent space
     index = FaissIndex(dim, partitions)
 
     print_message("#> Training with the vectors...")
@@ -57,7 +57,6 @@ SPAN = 3
 
 def index_faiss(args):
     print_message("#> Starting..")
-
     parts, parts_paths, samples_paths = get_parts(args.index_path)
 
     if args.sample is not None:
@@ -69,7 +68,7 @@ def index_faiss(args):
 
     for slice_idx, part_offset in enumerate(range(0, len(parts), num_parts_per_slice)):
         part_endpos = min(part_offset + num_parts_per_slice, len(parts))
-
+        
         slice_parts_paths = parts_paths[part_offset:part_endpos]
         slice_samples_paths = samples_paths[part_offset:part_endpos]
 
@@ -89,7 +88,9 @@ def index_faiss(args):
         loaded_parts = queue.Queue(maxsize=1)
 
         def _loader_thread(thread_parts_paths):
+            print('_loader_thread')
             for filenames in grouper(thread_parts_paths, SPAN, fillvalue=None):
+                # read .pt files from filenames and concatenate
                 sub_collection = [load_index_part(filename) for filename in filenames if filename is not None]
                 sub_collection = torch.cat(sub_collection)
                 sub_collection = sub_collection.float().numpy()

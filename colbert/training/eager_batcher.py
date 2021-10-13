@@ -35,6 +35,7 @@ class EagerBatcher():
                 continue
 
             query, pos, neg = line.strip().split('\t')
+            #print(query, '|||',  pos, '|||', neg)
 
             queries.append(query)
             positives.append(pos)
@@ -45,7 +46,13 @@ class EagerBatcher():
         if len(queries) < self.bsize:
             raise StopIteration
 
-        return self.collate(queries, positives, negatives)
+        ccc = self.collate(queries, positives, negatives)
+        #print(ccc[0][0][0].shape) # 16, 32
+        #print(ccc[0][0][1].shape) #
+        #print(ccc[0][1][0].shape) # 16, 128
+        #print(ccc[0][1][1].shape) #
+
+        return ccc
 
     def collate(self, queries, positives, negatives):
         assert len(queries) == len(positives) == len(negatives) == self.bsize
