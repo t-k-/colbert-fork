@@ -31,7 +31,7 @@ class IndexRanker():
         print_message(f"#> Using strides {self.strides}..")
 
         self.views = self._create_views(self.tensor)
-        self.buffers = self._create_buffers(BSIZE, self.tensor.dtype, {'cpu', 'cuda:0'})
+        #self.buffers = self._create_buffers(BSIZE, self.tensor.dtype, {'cpu', 'cuda:0'})
 
     def _create_views(self, tensor):
         views = []
@@ -64,15 +64,15 @@ class IndexRanker():
 
         return views
 
-    def _create_buffers(self, max_bsize, dtype, devices):
-        buffers = {}
+    #def _create_buffers(self, max_bsize, dtype, devices):
+    #    buffers = {}
 
-        for device in devices:
-            buffers[device] = [torch.zeros(max_bsize, stride, self.dim, dtype=dtype,
-                                           device=device, pin_memory=(device == 'cpu'))
-                               for stride in self.strides]
+    #    for device in devices:
+    #        buffers[device] = [torch.zeros(max_bsize, stride, self.dim, dtype=dtype,
+    #                                       device=device, pin_memory=(device == 'cpu'))
+    #                           for stride in self.strides]
 
-        return buffers
+    #    return buffers
 
     def rank(self, Q, pids, views=None, shift=0):
         assert len(pids) > 0
@@ -84,7 +84,7 @@ class IndexRanker():
         views = self.views if views is None else views
         VIEWS_DEVICE = views[0].device
 
-        D_buffers = self.buffers[str(VIEWS_DEVICE)]
+        #D_buffers = self.buffers[str(VIEWS_DEVICE)]
 
         raw_pids = pids if type(pids) is list else pids.tolist()
         pids = torch.tensor(pids) if type(pids) is list else pids
@@ -118,7 +118,10 @@ class IndexRanker():
             D_size = group_offsets_uniq.size(0)
             #  view[2] = [4469448, 180, 128],      dim      selects
             #print('1', views[group_idx].shape) # torch.Size([4469529, 99, 128]
-            D = torch.index_select(views[group_idx], 0, group_offsets_uniq, out=D_buffers[group_idx][:D_size])
+
+            #D = torch.index_select(views[group_idx], 0, group_offsets_uniq, out=D_buffers[group_idx][:D_size])
+            D = torch.index_select(views[group_idx], 0, group_offsets_uniq)
+
             #print('2', D.shape) # torch.Size([5510, 99, 128])
             D = D.to(DEVICE)
             D = D[group_offsets_expand.to(DEVICE)].to(dtype=self.maxsim_dtype)
