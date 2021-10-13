@@ -85,6 +85,7 @@ class FaissIndex():
         num_queries, embeddings_per_query, dim = Q.size() # 1, 32, 128
 
         # break down into query keywords
+        # [1, 32, 128] => [32, 128]
         Q_faiss = Q.view(num_queries * embeddings_per_query, dim).cpu().contiguous()
 
         # Search in large batches with faiss.
@@ -101,8 +102,10 @@ class FaissIndex():
             print_message("#> Searching from {} to {}...".format(offset, endpos), condition=verbose)
 
             some_Q_faiss = Q_faiss[offset:endpos].float().numpy()
+            #print('some_Q_faiss.shape', some_Q_faiss.shape) # (32, 128)
             _, some_embedding_ids = self.faiss_index.search(some_Q_faiss, faiss_depth)
-            print('>>SEARCH FAISS<<', faiss_depth, some_embedding_ids.shape) # (32, 1024)
+            print('>>SEARCH FAISS<<', faiss_depth, some_embedding_ids.shape)
+            # some_embedding_ids.shape = (32, 1024)
             embeddings_ids.append(torch.from_numpy(some_embedding_ids))
 
         embedding_ids = torch.cat(embeddings_ids) # [32, 1024]

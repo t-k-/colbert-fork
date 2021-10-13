@@ -21,6 +21,7 @@ class IndexPart():
         all_parts, all_parts_paths, _ = get_parts(directory)
         print('all_parts', all_parts) # [0]
         print('all_parts_paths', all_parts_paths) # MSMARCO-tiny/0.pt
+        print('first_part, last_part', first_part, last_part) # 0, None
         self.parts = all_parts[first_part:last_part]
         self.parts_paths = all_parts_paths[first_part:last_part]
 
@@ -33,15 +34,19 @@ class IndexPart():
         print('self.doc_offset', self.doc_offset)
 
         self.doc_endpos = sum([len(part_doclens) for part_doclens in all_doclens[:last_part]])
+        print('self.doc_endpos', self.doc_endpos)
         self.pids_range = range(self.doc_offset, self.doc_endpos)
 
         self.parts_doclens = all_doclens[first_part:last_part]
         self.doclens = flatten(self.parts_doclens)
-        print('self.doclens', len(self.doclens))
+        print('self.doclens.length', len(self.doclens))
         self.num_embeddings = sum(self.doclens)
+        print('self.num_embeddings', self.num_embeddings)
 
         # load document code/tensor
         self.tensor = self._load_parts(dim, verbose)
+
+        print('>>LOADED TENSOR<<', self.tensor.shape)
 
         self.ranker = IndexRanker(self.tensor, self.doclens)
 
@@ -58,6 +63,9 @@ class IndexPart():
             endpos = offset + sum(self.parts_doclens[idx])
             part = load_index_part(filename, verbose=verbose)
 
+            #print(part.shape) # torch.Size([133, 128])
+            #print(tensor.shape, offset, endpos) # torch.Size([133+512=645, 128]), 0, 133
+
             tensor[offset:endpos] = part
             offset = endpos
 
@@ -73,6 +81,8 @@ class IndexPart():
         """
 
         assert Q.size(0) in [1, len(pids)], (Q.size(0), len(pids))
+        ## print(self.pids_range)
+        ## print(pids)
         assert all(pid in self.pids_range for pid in pids), self.pids_range
 
         # GET relative PIDs

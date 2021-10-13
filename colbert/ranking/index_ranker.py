@@ -23,7 +23,7 @@ class IndexRanker():
         self.doclens = torch.tensor(self.doclens) # tensorize
         self.doclens_pfxsum = torch.tensor(self.doclens_pfxsum) # tensorize
 
-        self.dim = self.tensor.size(-1)
+        self.dim = self.tensor.size(-1) # 128
 
         self.strides = [torch_percentile(self.doclens, p) for p in [90]]
         self.strides.append(self.doclens.max().item())
@@ -36,14 +36,31 @@ class IndexRanker():
     def _create_views(self, tensor):
         views = []
 
-        for stride in self.strides:
-            outdim = tensor.size(0) - stride + 1
-            print('outdim', outdim) # 99, 180
-            view = torch.as_strided(tensor, 
+        for stride in self.strides: # 99, 180
+            outdim = tensor.size(0) - stride + 1 # 4469627 - 99/180 + 1
+            print('outdim', outdim) # 4469529, 4469448
+            view = torch.as_strided(tensor,  # [4469627, 128]
                 (outdim, stride, self.dim), (self.dim, self.dim, 1))
-               # 4469529,  99/180,   128,       128,      128,   1
-            print(f'view.shape[i]', view.shape)
+            #4469529/.., 99/180,   128,       128,      128,     1
+            print(f'view.shape[i]', view.shape) # [4469529/.., 99/180, 128]
             views.append(view)
+
+        # Example
+        # tensor([[ 1.8278, -1.8511],
+        #         [ 1.2551,  1.7123],
+        #         [-0.4915,  0.6947],
+        #         [ 2.3282,  1.8772]])
+        # dim = 2
+        # stride = 2 # group size. Try to adjust it and see what will happen...
+        # outdim = tensor.size(0) - stride + 1 # which equals to 3
+        # view = torch.as_strided(tensor, (outdim, stride, dim), (dim, dim, 1))
+        #
+        # tensor([[[ 1.8278, -1.8511],
+        #          [ 1.2551,  1.7123]],
+        #         [[ 1.2551,  1.7123],
+        #          [-0.4915,  0.6947]],
+        #         [[-0.4915,  0.6947],
+        #          [ 2.3282,  1.8772]]])
 
         return views
 
