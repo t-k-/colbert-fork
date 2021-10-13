@@ -13,9 +13,11 @@ from colbert.indexing.loaders import load_doclens
 
 class FaissIndex():
     def __init__(self, index_path, faiss_index_path, nprobe, part_range=None):
+        print(locals())
         print_message("#> Loading the FAISS index from", faiss_index_path, "..")
 
         faiss_part_range = os.path.basename(faiss_index_path).split('.')[-2].split('-')
+        print(faiss_part_range) # ['32768']
 
         if len(faiss_part_range) == 2:
             faiss_part_range = range(*map(int, faiss_part_range))
@@ -32,6 +34,7 @@ class FaissIndex():
 
         print_message("#> Building the emb2pid mapping..")
         all_doclens = load_doclens(index_path, flatten=False)
+        # from doclens.k.json
 
         pid_offset = 0
         if faiss_part_range is not None:
@@ -49,9 +52,10 @@ class FaissIndex():
 
         all_doclens = flatten(all_doclens)
 
-        total_num_embeddings = sum(all_doclens)
+        total_num_embeddings = sum(all_doclens) # total number of words
         self.emb2pid = torch.zeros(total_num_embeddings, dtype=torch.int)
 
+        # e.g., emb29 emb30 emb31 are from doc89
         offset_doclens = 0
         for pid, dlength in enumerate(all_doclens):
             self.emb2pid[offset_doclens: offset_doclens + dlength] = pid_offset + pid
@@ -63,7 +67,12 @@ class FaissIndex():
 
     def retrieve(self, faiss_depth, Q, verbose=False):
         embedding_ids = self.queries_to_embedding_ids(faiss_depth, Q, verbose=verbose)
+        #print('EMB', embedding_ids.shape) # 6249
+
+        # map embedding position to uniq PIDs
         pids = self.embedding_ids_to_pids(embedding_ids, verbose=verbose)
+
+        #print('Passages', len(pids[0])) # 6249
 
         if self.relative_range is not None:
             pids = [[pid for pid in pids_ if pid in self.relative_range] for pids_ in pids]
@@ -72,23 +81,27 @@ class FaissIndex():
 
     def queries_to_embedding_ids(self, faiss_depth, Q, verbose=True):
         # Flatten into a matrix for the faiss search.
-        num_queries, embeddings_per_query, dim = Q.size()
+        num_queries, embeddings_per_query, dim = Q.size() # 1, 32, 128
+
+        # break down into query keywords
         Q_faiss = Q.view(num_queries * embeddings_per_query, dim).cpu().contiguous()
 
         # Search in large batches with faiss.
-        print_message("#> Search in batches with faiss. \t\t",
+        print_message("#> Search in batches with faiss. ",
                       f"Q.size() = {Q.size()}, Q_faiss.size() = {Q_faiss.size()}",
                       condition=verbose)
 
         embeddings_ids = []
-        faiss_bsize = embeddings_per_query * 5000
+        faiss_bsize = embeddings_per_query * 5000 # 32 * 5000
+        # almost always in one batch
         for offset in range(0, Q_faiss.size(0), faiss_bsize):
             endpos = min(offset + faiss_bsize, Q_faiss.size(0))
-
+            # from 0 to 32
             print_message("#> Searching from {} to {}...".format(offset, endpos), condition=verbose)
 
             some_Q_faiss = Q_faiss[offset:endpos].float().numpy()
             _, some_embedding_ids = self.faiss_index.search(some_Q_faiss, faiss_depth)
+            print('>>SEARCH FAISS<<', faiss_depth, some_embedding_ids.shape)
             embeddings_ids.append(torch.from_numpy(some_embedding_ids))
 
         embedding_ids = torch.cat(embeddings_ids)
@@ -101,13 +114,14 @@ class FaissIndex():
     def embedding_ids_to_pids(self, embedding_ids, verbose=True):
         # Find unique PIDs per query.
         print_message("#> Lookup the PIDs..", condition=verbose)
-        all_pids = self.emb2pid[embedding_ids]
+        all_pids = self.emb2pid[embedding_ids] # like numpy index arrays
 
         print_message(f"#> Converting to a list [shape = {all_pids.size()}]..", condition=verbose)
         all_pids = all_pids.tolist()
 
         print_message("#> Removing duplicates (in parallel if large enough)..", condition=verbose)
 
+        # see the bottom of this file for uniq() definition
         if len(all_pids) > 5000:
             all_pids = list(self.parallel_pool.map(uniq, all_pids))
         else:

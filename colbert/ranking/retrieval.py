@@ -40,6 +40,8 @@ def retrieve(args):
                 Q = ranker.encode([q])
                 pids, scores = ranker.rank(Q)
 
+                return
+
                 torch.cuda.synchronize()
                 milliseconds += (time.time() - s) * 1000.0
 

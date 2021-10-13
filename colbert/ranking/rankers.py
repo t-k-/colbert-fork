@@ -10,7 +10,7 @@ from colbert.utils.utils import flatten, zipstar
 class Ranker():
     def __init__(self, args, inference, faiss_depth=1024):
         self.inference = inference
-        self.faiss_depth = faiss_depth
+        self.faiss_depth = faiss_depth # 1024
 
         if faiss_depth is not None:
             self.faiss_index = FaissIndex(args.index_path, args.faiss_index_path, args.nprobe, part_range=args.part_range)
@@ -26,7 +26,8 @@ class Ranker():
         return Q
 
     def rank(self, Q, pids=None):
-        pids = self.retrieve(Q, verbose=False)[0] if pids is None else pids
+        pids = self.retrieve(Q, verbose=True)[0]
+        print('BBB', len(pids))
 
         assert type(pids) in [list, tuple], type(pids)
         assert Q.size(0) == 1, (len(pids), Q.size())
