@@ -96,7 +96,7 @@ class IndexRanker():
         b = torch.tensor(self.strides).unsqueeze(0) # torch.Size([1, 2])
         assignments = (a > b + 1e-6) # [6249, 2]
         assignments = assignments.sum(-1) # [6249]
-        print('assignments', assignments)
+        print('assignments', assignments) # how many docs exceeds 90 percentile
 
         one_to_n = torch.arange(len(raw_pids))
         output_pids, output_scores, output_permutation = [], [], []
@@ -107,6 +107,9 @@ class IndexRanker():
 
             if locator.sum() < 1e-5:
                 continue
+
+            # when group_idx == 0, locator are docs less than 90-percentile
+            # when group_idx == 1, locator are docs more than 90-percentile
 
             group_pids, group_doclens, group_offsets = pids[locator], doclens[locator], offsets[locator]
             group_Q = Q if Q.size(0) == 1 else Q[locator]
