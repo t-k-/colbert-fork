@@ -15,6 +15,9 @@ from colbert.ranking.rankers import Ranker
 
 
 def retrieve(args):
+    args_dict = vars(args)
+    print([(args_dict[n], n) for n in args_dict if not n.startswith('_') and n != 'colbert' and n != 'queries' and n != 'checkpoint' and n != 'input_arguments'])
+
     inference = ModelInference(args.colbert, amp=args.amp)
     ranker = Ranker(args, inference, faiss_depth=args.faiss_depth)
 
