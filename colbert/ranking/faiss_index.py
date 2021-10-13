@@ -66,8 +66,9 @@ class FaissIndex():
         self.parallel_pool = Pool(16)
 
     def retrieve(self, faiss_depth, Q, verbose=False):
+        # search and get some document embeddings
         embedding_ids = self.queries_to_embedding_ids(faiss_depth, Q, verbose=verbose)
-        #print('EMB', embedding_ids.shape) # 6249
+        #print('EMB', embedding_ids.shape) # torch.Size([1, 32 * 1024 = 32768])
 
         # map embedding position to uniq PIDs
         pids = self.embedding_ids_to_pids(embedding_ids, verbose=verbose)
@@ -101,13 +102,14 @@ class FaissIndex():
 
             some_Q_faiss = Q_faiss[offset:endpos].float().numpy()
             _, some_embedding_ids = self.faiss_index.search(some_Q_faiss, faiss_depth)
-            print('>>SEARCH FAISS<<', faiss_depth, some_embedding_ids.shape)
+            print('>>SEARCH FAISS<<', faiss_depth, some_embedding_ids.shape) # (32, 1024)
             embeddings_ids.append(torch.from_numpy(some_embedding_ids))
 
-        embedding_ids = torch.cat(embeddings_ids)
+        embedding_ids = torch.cat(embeddings_ids) # [32, 1024]
 
         # Reshape to (number of queries, non-unique embedding IDs per query)
-        embedding_ids = embedding_ids.view(num_queries, embeddings_per_query * embedding_ids.size(1))
+        embedding_ids = embedding_ids.view(num_queries, embeddings_per_query * embedding_ids.size(1)) # [1, 32 * 1024 = 32768]
+        #print(embedding_ids.shape)
 
         return embedding_ids
 
@@ -133,4 +135,5 @@ class FaissIndex():
 
 
 def uniq(l):
+    #return l
     return list(set(l))

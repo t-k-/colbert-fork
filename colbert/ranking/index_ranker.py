@@ -13,21 +13,21 @@ BSIZE = 1 << 14
 
 class IndexRanker():
     def __init__(self, tensor, doclens):
-        self.tensor = tensor
-        self.doclens = doclens
+        self.tensor = tensor # Big document tensor
+        print('tensor.shape', tensor.shape) # torch.Size([4469627, 128])
+        self.doclens = doclens # of length 69905
 
         self.maxsim_dtype = torch.float32
-        self.doclens_pfxsum = [0] + list(accumulate(self.doclens))
+        self.doclens_pfxsum = [0] + list(accumulate(self.doclens)) # CDF?
 
-        self.doclens = torch.tensor(self.doclens)
-        self.doclens_pfxsum = torch.tensor(self.doclens_pfxsum)
+        self.doclens = torch.tensor(self.doclens) # tensorize
+        self.doclens_pfxsum = torch.tensor(self.doclens_pfxsum) # tensorize
 
         self.dim = self.tensor.size(-1)
 
         self.strides = [torch_percentile(self.doclens, p) for p in [90]]
         self.strides.append(self.doclens.max().item())
-        self.strides = sorted(list(set(self.strides)))
-
+        self.strides = sorted(list(set(self.strides))) # [99, 180]
         print_message(f"#> Using strides {self.strides}..")
 
         self.views = self._create_views(self.tensor)
@@ -38,7 +38,11 @@ class IndexRanker():
 
         for stride in self.strides:
             outdim = tensor.size(0) - stride + 1
-            view = torch.as_strided(tensor, (outdim, stride, self.dim), (self.dim, self.dim, 1))
+            print('outdim', outdim) # 99, 180
+            view = torch.as_strided(tensor, 
+                (outdim, stride, self.dim), (self.dim, self.dim, 1))
+               # 4469529,  99/180,   128,       128,      128,   1
+            print(f'view.shape[i]', view.shape)
             views.append(view)
 
         return views
@@ -59,6 +63,7 @@ class IndexRanker():
 
         Q = Q.contiguous().to(DEVICE).to(dtype=self.maxsim_dtype)
 
+        # views is None
         views = self.views if views is None else views
         VIEWS_DEVICE = views[0].device
 
@@ -67,13 +72,19 @@ class IndexRanker():
         raw_pids = pids if type(pids) is list else pids.tolist()
         pids = torch.tensor(pids) if type(pids) is list else pids
 
+        # length == 6249
         doclens, offsets = self.doclens[pids], self.doclens_pfxsum[pids]
 
-        assignments = (doclens.unsqueeze(1) > torch.tensor(self.strides).unsqueeze(0) + 1e-6).sum(-1)
+        a = doclens.unsqueeze(1) # torch.Size([6249, 1])
+        b = torch.tensor(self.strides).unsqueeze(0) # torch.Size([1, 2])
+        assignments = (a > b + 1e-6) # [6249, 2]
+        assignments = assignments.sum(-1) # [6249]
+        print('assignments', assignments)
 
         one_to_n = torch.arange(len(raw_pids))
         output_pids, output_scores, output_permutation = [], [], []
 
+        # divde by doclen, from [99, 180]
         for group_idx, stride in enumerate(self.strides):
             locator = (assignments == group_idx)
 
@@ -84,17 +95,25 @@ class IndexRanker():
             group_Q = Q if Q.size(0) == 1 else Q[locator]
 
             group_offsets = group_offsets.to(VIEWS_DEVICE) - shift
+            # output,             inverse_indices (where elements in the original input map to in the output)
             group_offsets_uniq, group_offsets_expand = torch.unique_consecutive(group_offsets, return_inverse=True)
 
             D_size = group_offsets_uniq.size(0)
+            #  view[2] = [4469448, 180, 128],      dim      selects
+            #print('1', views[group_idx].shape) # torch.Size([4469529, 99, 128]
             D = torch.index_select(views[group_idx], 0, group_offsets_uniq, out=D_buffers[group_idx][:D_size])
+            #print('2', D.shape) # torch.Size([5510, 99, 128])
             D = D.to(DEVICE)
             D = D[group_offsets_expand.to(DEVICE)].to(dtype=self.maxsim_dtype)
+            #print('3', D.shape) # torch.Size([5510, 99, 128])
 
             mask = torch.arange(stride, device=DEVICE) + 1
             mask = mask.unsqueeze(0) <= group_doclens.to(DEVICE).unsqueeze(-1)
 
-            scores = (D @ group_Q) * mask.unsqueeze(-1)
+            #print('4', group_Q.shape) # torch.Size([1, 128, 32])
+            scores = D @ group_Q
+            #print('5', scores.shape) # torch.Size([5510, 99, 32])
+            scores = scores * mask.unsqueeze(-1)
             scores = scores.max(1).values.sum(-1).cpu()
 
             output_pids.append(group_pids)
@@ -160,5 +179,9 @@ class IndexRanker():
 def torch_percentile(tensor, p):
     assert p in range(1, 100+1)
     assert tensor.dim() == 1
-
-    return tensor.kthvalue(int(p * tensor.size(0) / 100.0)).values.item()
+    # p = 90
+    # tensor: torch.Size([69905])
+    _90_percentile = int(p * tensor.size(0) / 100.0) # 62914
+    # kth greatest value
+    kth_val = tensor.kthvalue(_90_percentile) #  values=99, indices=59498
+    return kth_val.values.item()
