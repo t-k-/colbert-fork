@@ -13,7 +13,7 @@ BSIZE = 1 << 14
 
 class IndexRanker():
     def __init__(self, tensor, doclens):
-        self.tensor = tensor # Big document tensor
+        self.tensor = tensor # Big document words tensor
         print('tensor.shape', tensor.shape) # torch.Size([4469627, 128])
         self.doclens = doclens # of length 69905
 
