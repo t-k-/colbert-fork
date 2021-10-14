@@ -119,6 +119,7 @@ class IndexRanker():
             # output,             inverse_indices (where elements in the original input map to in the output)
             print(pids)
             print(group_pids) # subset of pids
+            #group_offsets[-1] = 2101651
             print(group_offsets) # subset of offsets, same size as group_pids
             group_offsets_uniq, group_offsets_expand = torch.unique_consecutive(group_offsets, return_inverse=True)
             print(group_offsets_uniq) # equal pfxsum means same document
@@ -130,16 +131,22 @@ class IndexRanker():
 
             #  view[1] = [4469529,  99, 128],       dim      selects
             #  view[2] = [4469448, 180, 128],       dim      selects
+            # What is in view? words' embeddings.
+
             #D = torch.index_select(views[group_idx], 0, group_offsets_uniq, out=D_buffers[group_idx][:D_size])
             D = torch.index_select(views[group_idx], 0, group_offsets_uniq)
-
             #print('2', D.shape) # torch.Size([5510, 99, 128])
+
             D = D.to(DEVICE)
             D = D[group_offsets_expand.to(DEVICE)].to(dtype=self.maxsim_dtype)
+            # in rare cases, D contains some identical offsets
             #print('3', D.shape) # torch.Size([5510, 99, 128])
 
-            mask = torch.arange(stride, device=DEVICE) + 1
-            mask = mask.unsqueeze(0) <= group_doclens.to(DEVICE).unsqueeze(-1)
+            mask_ = torch.arange(stride, device=DEVICE) + 1
+            mask = mask_.unsqueeze(0) <= group_doclens.to(DEVICE).unsqueeze(-1)
+            #print(mask_)
+            #print(mask)
+            #print()
 
             # [5510, 99, 128] @ [1, 128, 32]
             scores = D @ group_Q
