@@ -119,6 +119,7 @@ class IndexRanker():
             # output,             inverse_indices (where elements in the original input map to in the output)
             print(pids)
             print(group_pids) # subset of pids
+            print(group_doclens)
             #group_offsets[-1] = 2101651
             print(group_offsets) # subset of offsets, same size as group_pids
             group_offsets_uniq, group_offsets_expand = torch.unique_consecutive(group_offsets, return_inverse=True)
@@ -143,13 +144,19 @@ class IndexRanker():
             #print('3', D.shape) # torch.Size([5510, 99, 128])
 
             mask_ = torch.arange(stride, device=DEVICE) + 1
+            # mask_ = tensor([1, 2, 3 ... 99/180])
+            # mask_.unsqueeze(0) = tensor([[1, 2, 3 ... 99/180]])
             mask = mask_.unsqueeze(0) <= group_doclens.to(DEVICE).unsqueeze(-1)
-            #print(mask_)
-            #print(mask)
-            #print()
 
             # [5510, 99, 128] @ [1, 128, 32]
             scores = D @ group_Q
+            #print(mask_)
+            #print(group_doclens)
+            #print(mask.unsqueeze(-1)) # each row is identical
+            #print(scores)
+            #print(scores * mask.unsqueeze(-1))
+            #print()
+
             #print('4', scores.shape) # torch.Size([5510, 99, 32])
 
             scores = scores * mask.unsqueeze(-1)
