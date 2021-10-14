@@ -113,15 +113,23 @@ class IndexRanker():
 
             group_pids, group_doclens, group_offsets = pids[locator], doclens[locator], offsets[locator]
             group_Q = Q if Q.size(0) == 1 else Q[locator]
+            #print('0', group_Q.shape) # torch.Size([1, 128, 32])
 
             group_offsets = group_offsets.to(VIEWS_DEVICE) - shift
             # output,             inverse_indices (where elements in the original input map to in the output)
+            print(pids)
+            print(group_pids) # subset of pids
+            print(group_offsets) # subset of offsets, same size as group_pids
             group_offsets_uniq, group_offsets_expand = torch.unique_consecutive(group_offsets, return_inverse=True)
+            print(group_offsets_uniq) # equal pfxsum means same document
+            print(group_offsets_expand) # inverted indices for group_offsets_uniq
+            print()
 
             D_size = group_offsets_uniq.size(0)
-            #  view[2] = [4469448, 180, 128],      dim      selects
             #print('1', views[group_idx].shape) # torch.Size([4469529, 99, 128]
 
+            #  view[1] = [4469529,  99, 128],       dim      selects
+            #  view[2] = [4469448, 180, 128],       dim      selects
             #D = torch.index_select(views[group_idx], 0, group_offsets_uniq, out=D_buffers[group_idx][:D_size])
             D = torch.index_select(views[group_idx], 0, group_offsets_uniq)
 
@@ -133,11 +141,13 @@ class IndexRanker():
             mask = torch.arange(stride, device=DEVICE) + 1
             mask = mask.unsqueeze(0) <= group_doclens.to(DEVICE).unsqueeze(-1)
 
-            #print('4', group_Q.shape) # torch.Size([1, 128, 32])
+            # [5510, 99, 128] @ [1, 128, 32]
             scores = D @ group_Q
-            #print('5', scores.shape) # torch.Size([5510, 99, 32])
+            #print('4', scores.shape) # torch.Size([5510, 99, 32])
+
             scores = scores * mask.unsqueeze(-1)
             scores = scores.max(1).values.sum(-1).cpu()
+            #print('5', scores.shape) # torch.Size([5510])
 
             output_pids.append(group_pids)
             output_scores.append(scores)
