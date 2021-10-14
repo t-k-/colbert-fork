@@ -148,6 +148,7 @@ class IndexRanker():
             # mask_ = tensor([1, 2, 3 ... 99/180])
             # mask_.unsqueeze(0) = tensor([[1, 2, 3 ... 99/180]])
             mask = mask_.unsqueeze(0) <= group_doclens.to(DEVICE).unsqueeze(-1)
+            #print('mask.shape', mask.shape) # torch.Size([5510, 99])
 
             # [5510, 99, 128] @ [1, 128, 32]
             scores = D @ group_Q
