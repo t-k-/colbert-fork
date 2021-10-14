@@ -114,18 +114,19 @@ class IndexRanker():
             group_pids, group_doclens, group_offsets = pids[locator], doclens[locator], offsets[locator]
             group_Q = Q if Q.size(0) == 1 else Q[locator]
             #print('0', group_Q.shape) # torch.Size([1, 128, 32])
+            #print('0', group_doclens.shape) # torch.Size([5510])
 
             group_offsets = group_offsets.to(VIEWS_DEVICE) - shift
             # output,             inverse_indices (where elements in the original input map to in the output)
-            print(pids)
-            print(group_pids) # subset of pids
-            print(group_doclens)
-            #group_offsets[-1] = 2101651
-            print(group_offsets) # subset of offsets, same size as group_pids
+
+            #print(pids)
+            #print(group_pids) # subset of pids
+            #print(group_doclens)
+            #print(group_offsets) # subset of offsets, same size as group_pids
             group_offsets_uniq, group_offsets_expand = torch.unique_consecutive(group_offsets, return_inverse=True)
-            print(group_offsets_uniq) # equal pfxsum means same document
-            print(group_offsets_expand) # inverted indices for group_offsets_uniq
-            print()
+            #print(group_offsets_uniq) # equal pfxsum means same document
+            #print(group_offsets_expand) # inverted indices for group_offsets_uniq
+            #print()
 
             D_size = group_offsets_uniq.size(0)
             #print('1', views[group_idx].shape) # torch.Size([4469529, 99, 128]

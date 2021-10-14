@@ -27,7 +27,7 @@ class Ranker():
 
     def rank(self, Q, pids=None):
         pids = self.retrieve(Q, verbose=True)[0]
-        pids = pids[:20] ########## DEBUG!!!
+        #pids = pids[:20] ########## DEBUG!!!
         print('pids', len(pids)) # 32 * 1024 = 32768 indices -- UNIQ --> 6249
 
         assert type(pids) in [list, tuple], type(pids)
