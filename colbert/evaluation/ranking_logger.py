@@ -43,7 +43,8 @@ class RankingLogger():
 
             possibly_score = [score] if self.log_scores else []
 
-            f_buffer.append('\t'.join([str(x) for x in [qid, pid, rank] + possibly_score]) + "\n")
+            #################f_buffer.append('\t'.join([str(x) for x in [qid, pid, rank] + possibly_score]) + "\n")
+            f_buffer.append('\t'.join([str(x) for x in [qid, pid, score] + possibly_score]) + "\n")
             if self.g:
                 g_buffer.append('\t'.join([str(x) for x in [qid, pid, rank, is_relevant]]) + "\n")
 
